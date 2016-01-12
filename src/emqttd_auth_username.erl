@@ -111,6 +111,9 @@ check(#mqtt_client{username = undefined}, _Password, _Opts) ->
 check(_User, undefined, _Opts) ->
     {error, "Password undefined"};
 check(#mqtt_client{username = Username}, Password, _Opts) ->
+
+    io:format("UserName:~p, Password:~p",[Username,Password]),
+
     case mnesia:dirty_read(?AUTH_USERNAME_TAB, Username) of
         [] -> 
             {error, "Username Not Found"};

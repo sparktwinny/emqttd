@@ -127,56 +127,70 @@ received(Packet = ?PACKET(_Type), State) ->
 
 process(Packet = ?CONNECT_PACKET(Var), State0) ->
 
-    #mqtt_packet_connect{proto_ver  = ProtoVer,
-                         proto_name = ProtoName,
-                         username   = Username,
-                         password   = Password,
-                         clean_sess = CleanSess,
-                         keep_alive = KeepAlive,
-                         client_id  = ClientId} = Var,
+  UU = #mqtt_packet_connect{proto_ver = ProtoVer,
+    proto_name = ProtoName,
+    username = Username,
+    password = Password,
+    clean_sess = CleanSess,
+    keep_alive = KeepAlive,
+    client_id = ClientId} = Var,
 
-    State1 = State0#proto_state{proto_ver  = ProtoVer,
-                                proto_name = ProtoName,
-                                username   = Username,
-                                client_id  = ClientId,
-                                clean_sess = CleanSess,
-                                keepalive  = KeepAlive,
-                                will_msg   = willmsg(Var),
-                                connected_at = os:timestamp()},
+  State1 = State0#proto_state{proto_ver = ProtoVer,
+    proto_name = ProtoName,
+    username = Username,
+    client_id = ClientId,
+    clean_sess = CleanSess,
+    keepalive = KeepAlive,
+    will_msg = willmsg(Var),
+    connected_at = os:timestamp()},
 
-    trace(recv, Packet, State1),
+  trace(recv, Packet, State1),
 
-    {ReturnCode1, SessPresent, State3} =
+  %%io:format("UU:~p",[UU]),
+
+
+  {ReturnCode1, SessPresent, State3} =
     case validate_connect(Var, State1) of
-        ?CONNACK_ACCEPT ->
-            case emqttd_access_control:auth(client(State1), Password) of
-                ok ->
-                    %% Generate clientId if null
-                    State2 = maybe_set_clientid(State1),
+      ?CONNACK_ACCEPT ->
 
-                    %% Start session
-                    case emqttd_sm:start_session(CleanSess, clientid(State2)) of
-                        {ok, Session, SP} ->
-                            %% Register the client
-                            emqttd_cm:register(client(State2)),
-                            %% Start keepalive
-                            start_keepalive(KeepAlive),
-                            %% ACCEPT
-                            {?CONNACK_ACCEPT, SP, State2#proto_state{session = Session}};
-                        {error, Error} ->
-                            exit({shutdown, Error})
-                    end;
-                {error, Reason}->
-                    ?LOG(error, "Username '~s' login failed for ~p", [Username, Reason], State1),
-                    {?CONNACK_CREDENTIALS, false, State1}
+        case emqttd_access_control:auth(client(State1), Password) of
+          ok ->
+
+
+            %% Generate clientId if null
+            State2 = maybe_set_clientid(State1),
+
+            %% Start session
+            case emqttd_sm:start_session(CleanSess, clientid(State2)) of
+              {ok, Session, SP} ->
+                %% Register the client
+                emqttd_cm:register(client(State2)),
+                %% Start keepalive
+                start_keepalive(KeepAlive),
+                %% ACCEPT
+                {?CONNACK_ACCEPT, SP, State2#proto_state{session = Session}};
+              {error, Error} ->
+                exit({shutdown, Error})
             end;
-        ReturnCode ->
-            {ReturnCode, false, State1}
+          {error, Reason} ->
+            ?LOG(error, "Username '~s' login failed for ~p", [Username, Reason], State1),
+            {?CONNACK_CREDENTIALS, false, State1}
+        end;
+      ReturnCode ->
+        {ReturnCode, false, State1}
     end,
-    %% Run hooks
-    emqttd_broker:foreach_hooks('client.connected', [ReturnCode1, client(State3)]),
-    %% Send connack
-    send(?CONNACK_PACKET(ReturnCode1, sp(SessPresent)), State3);
+
+
+  case ReturnCode1 of
+    ?CONNACK_ACCEPT ->
+
+      %% Run hooks
+      emqttd_broker:foreach_hooks('client.connected', [ReturnCode1, client(State3)]);
+    _ ->
+      send(?CONNACK_PACKET(ReturnCode1, sp(SessPresent)), State3)
+
+
+  end;
 
 process(Packet = ?PUBLISH_PACKET(_Qos, Topic, _PacketId, _Payload), State) ->
     case check_acl(publish, Topic, client(State)) of
