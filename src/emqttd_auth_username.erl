@@ -112,17 +112,47 @@ check(_User, undefined, _Opts) ->
     {error, "Password undefined"};
 check(#mqtt_client{username = Username}, Password, _Opts) ->
 
-    io:format("UserName:~p, Password:~p",[Username,Password]),
+    io:format("UserName:~p, Password:~p ~n",[Username,Password]),
 
-    case mnesia:dirty_read(?AUTH_USERNAME_TAB, Username) of
-        [] -> 
-            {error, "Username Not Found"};
-        [#?AUTH_USERNAME_TAB{password = <<Salt:4/binary, Hash/binary>>}] ->
-            case Hash =:= md5_hash(Salt, Password) of
-                true -> ok;
-                false -> {error, "Password Not Right"}
-            end
-    end.
+%%  Map = jsx:decode(Username, [return_maps]),
+%%  %%io:format("map??:~p ~n", [Map]),
+%%  Type = binary_to_list(maps:get(<<"type">>, Map, undefined)),
+%%
+%%  Result = case Type of
+%%             "idpw" ->
+%%               UserId = binary_to_list(maps:get(<<"user_id">>, Map, undefined)),
+%%               %%Password = binary_to_list(maps:get(<<"password">>, Map, undefined)),
+%%               tw_user:checkByUserIdAndPassword(UserId, Password);
+%%             "pndv" ->
+%%               DeviceId = binary_to_list(maps:get(<<"device_ide">>, Map, undefined)),
+%%               PhoneNumber = binary_to_list(maps:get(<<"phone_number">>, Map, undefined)),
+%%               tw_user:checkByPhoneNumberAndDeviceId(PhoneNumber, DeviceId);
+%%             _ ->
+%%
+%%               io:format("failed!"),
+%%               failed
+%%
+%%           end,
+%%
+%%  case Result of
+%%    failed ->
+%%      case Type of
+%%        "idpw" ->
+%%          io:format("id/pw check failed");
+%%        "pndv" ->
+%%          io:format("phone/deviceId:check failed");
+%%        _ ->
+%%          io:format("wrong type:~p ~n", [Type])
+%%
+%%      end,
+%%      {error, "Cannot find user"};
+%%
+%%    _ ->
+%%      ok
+%%
+%%
+%%  end.
+ok.
 
 description() ->
     "Username password authentication module".

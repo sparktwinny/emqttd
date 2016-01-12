@@ -185,7 +185,8 @@ process(Packet = ?CONNECT_PACKET(Var), State0) ->
     ?CONNACK_ACCEPT ->
 
       %% Run hooks
-      emqttd_broker:foreach_hooks('client.connected', [ReturnCode1, client(State3)]);
+      emqttd_broker:foreach_hooks('client.connected', [ReturnCode1, client(State3)]),
+      send(?CONNACK_PACKET(ReturnCode1, sp(SessPresent)), State3);
     _ ->
       send(?CONNACK_PACKET(ReturnCode1, sp(SessPresent)), State3)
 
