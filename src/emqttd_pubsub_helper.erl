@@ -191,4 +191,3 @@ if_no_route(Topic, Fun) ->
         true -> ok;
         false -> Fun()
     end.
-
