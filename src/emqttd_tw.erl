@@ -12,7 +12,7 @@
 
 -include("emqttd_protocol.hrl").
 %% API
--export([publish_internal/5]).
+-export([publish_internal/5,publish_internal/6,onAck/2]).
 
 validate(qos, Qos) ->
   (Qos >= ?QOS_0) and (Qos =< ?QOS_2);
@@ -32,3 +32,19 @@ publish_internal(ClientId, Qos, Retain, Topic, Message) ->
     {_, false} ->
       {fail, "BAD TOPIC"}
   end.
+%%[aeskey]
+publish_internal(ClientId, Qos, Retain, Topic, Message,Encrypt) ->
+  Payload = Message,
+  case {validate(qos, Qos), validate(topic, Topic)} of
+    {true, true} ->
+      Msg = emqttd_message:make(ClientId, Qos, Topic, Payload,Encrypt),
+      emqttd_pubsub:publish(Msg#mqtt_message{retain = Retain}),
+      {ok, 0};
+    {false, _} ->
+      {fail, "BAD QOS"};
+    {_, false} ->
+      {fail, "BAD TOPIC"}
+  end.
+
+onAck(ClientId,Msg)->
+  tw_mqtt:onAckMsg(ClientId,Msg).
